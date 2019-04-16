@@ -1,0 +1,246 @@
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................52147(b)   |
+ | K/N:...............................52147/104294 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................    9      |
+ | Q  -- circ. block weight ... M0:    5                     |
+ | Q  -- circ. block weight ... M1:    4                     |
+ | numb. of errors. T:............................  136      |
+ |                                                           |
+ | True-RNG material byte length:.................   24 (B)  |
+ | Hash digest byte length:.......................   32 (B)  |
+ | Min. Ciphertext Overhead....................... 6554 (B)  |
+ | Max. Ciphertext Overhead.......................13040 (B)  |
+ |                                                           |
+ | private key size:....................   25(B) = 0.0(KiB)  |
+ | public  key size:.................... 6520(B) = 6.4(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 1/1 &    25 &   468 &  6520 &  6554 & 13040 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:      10074.953 (+,- 4266.252) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          0.416 (+,- 0.034) millisec
+    Average decryption time:          1.139 (+,- 0.090) millisec ... with successful decoding
+    Average decryption time:          1.139 (+,- 0.090) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 1 & 10074.95  ($\pm$ 4266.25 ) & 0.42   ($\pm$ 0.03 ) & 1.14   ($\pm$ 0.09 )  &   10076.51  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................35899(b)   |
+ | K/N:...............................35899/71798 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................    9      |
+ | Q  -- circ. block weight ... M0:    5                     |
+ | Q  -- circ. block weight ... M1:    4                     |
+ | numb. of errors. T:............................  136      |
+ |                                                           |
+ | True-RNG material byte length:.................   24 (B)  |
+ | Hash digest byte length:.......................   32 (B)  |
+ | Min. Ciphertext Overhead....................... 4521 (B)  |
+ | Max. Ciphertext Overhead....................... 8976 (B)  |
+ |                                                           |
+ | private key size:....................   25(B) = 0.0(KiB)  |
+ | public  key size:.................... 4488(B) = 4.4(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 1/0 &    25 &   468 &  4488 &  4521 &  8976 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:       3177.434 (+,- 27.253) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          0.306 (+,- 0.015) millisec
+    Average decryption time:          0.875 (+,- 0.153) millisec ... with successful decoding
+    Average decryption time:          0.875 (+,- 0.153) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 0 & 3177.43  ($\pm$ 27.25 ) & 0.31   ($\pm$ 0.01 ) & 0.87   ($\pm$ 0.15 )  &   3178.62  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................96221(b)   |
+ | K/N:...............................96221/192442 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................   11      |
+ | Q  -- circ. block weight ... M0:    6                     |
+ | Q  -- circ. block weight ... M1:    5                     |
+ | numb. of errors. T:............................  199      |
+ |                                                           |
+ | True-RNG material byte length:.................   32 (B)  |
+ | Hash digest byte length:.......................   48 (B)  |
+ | Min. Ciphertext Overhead.......................12077 (B)  |
+ | Max. Ciphertext Overhead.......................24064 (B)  |
+ |                                                           |
+ | private key size:....................   33(B) = 0.0(KiB)  |
+ | public  key size:....................12032(B) = 11.8(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 3/1 &    33 &   660 & 12032 & 12077 & 24064 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:      23657.338 (+,- 43.523) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          0.989 (+,- 0.028) millisec
+    Average decryption time:          2.435 (+,- 0.134) millisec ... with successful decoding
+    Average decryption time:          2.435 (+,- 0.134) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 1 & 23657.34  ($\pm$ 43.52 ) & 0.99   ($\pm$ 0.03 ) & 2.43   ($\pm$ 0.13 )  &   23660.76  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................57899(b)   |
+ | K/N:...............................57899/115798 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................   11      |
+ | Q  -- circ. block weight ... M0:    6                     |
+ | Q  -- circ. block weight ... M1:    5                     |
+ | numb. of errors. T:............................  199      |
+ |                                                           |
+ | True-RNG material byte length:.................   32 (B)  |
+ | Hash digest byte length:.......................   48 (B)  |
+ | Min. Ciphertext Overhead....................... 7283 (B)  |
+ | Max. Ciphertext Overhead.......................14480 (B)  |
+ |                                                           |
+ | private key size:....................   33(B) = 0.0(KiB)  |
+ | public  key size:.................... 7240(B) = 7.1(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 3/0 &    33 &   660 &  7240 &  7283 & 14480 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:       7928.677 (+,- 78.189) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          0.496 (+,- 0.008) millisec
+    Average decryption time:          1.369 (+,- 0.037) millisec ... with successful decoding
+    Average decryption time:          1.369 (+,- 0.037) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 0 & 7928.68  ($\pm$ 78.19 ) & 0.50   ($\pm$ 0.01 ) & 1.37   ($\pm$ 0.04 )  &   7930.54  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................152267(b)   |
+ | K/N:...............................152267/304534 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................   13      |
+ | Q  -- circ. block weight ... M0:    7                     |
+ | Q  -- circ. block weight ... M1:    6                     |
+ | numb. of errors. T:............................  267      |
+ |                                                           |
+ | True-RNG material byte length:.................   40 (B)  |
+ | Hash digest byte length:.......................   64 (B)  |
+ | Min. Ciphertext Overhead.......................19095 (B)  |
+ | Max. Ciphertext Overhead.......................38080 (B)  |
+ |                                                           |
+ | private key size:....................   41(B) = 0.0(KiB)  |
+ | public  key size:....................19040(B) = 18.6(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 5/1 &    41 &   884 & 19040 & 19095 & 38080 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:      76906.962 (+,- 33323.794) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          1.475 (+,- 0.081) millisec
+    Average decryption time:          4.085 (+,- 0.264) millisec ... with successful decoding
+    Average decryption time:          4.085 (+,- 0.264) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 1 & 76906.96  ($\pm$ 33323.79 ) & 1.47   ($\pm$ 0.08 ) & 4.09   ($\pm$ 0.26 )  &   76912.52  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
+
+ -------------------------------------------------------------
+ |        QC-LDPC PKC Kobara-Imai gamma (KI-g) Scheme        |
+ |                                                           |
+ | N0:............................................    2      |
+ | P:.............................................89051(b)   |
+ | K/N:...............................89051/178102 = 0.5      |
+ |                                                           |
+ | H circ. block weight DV:.......................   13      |
+ | Q  -- circ. block weight ... M0:    7                     |
+ | Q  -- circ. block weight ... M1:    6                     |
+ | numb. of errors. T:............................  267      |
+ |                                                           |
+ | True-RNG material byte length:.................   40 (B)  |
+ | Hash digest byte length:.......................   64 (B)  |
+ | Min. Ciphertext Overhead.......................11189 (B)  |
+ | Max. Ciphertext Overhead.......................22272 (B)  |
+ |                                                           |
+ | private key size:....................   41(B) = 0.0(KiB)  |
+ | public  key size:....................11136(B) = 10.9(KiB)  |
+ |                                                           |
+ -------------------------------------------------------------
+
+ KEYSIZETABLE: 5/0 &    41 &   884 & 11136 & 11189 & 22272 \\ 
+
+
+Performance tests.
+
+            Number of tests:          3
+Average key generation time:      23469.599 (+,- 10136.897) millisec
+Number of correct decodings:          3                   
+  ---  ---      decryptions:          3
+    Average encryption time:          1.030 (+,- 0.136) millisec
+    Average decryption time:          2.558 (+,- 0.046) millisec ... with successful decoding
+    Average decryption time:          2.558 (+,- 0.046) millisec ... with successful decoding, and ptx and decrypted ctx match
+
+ TIMETABLE: & 0 & 23469.60  ($\pm$ 10136.90 ) & 1.03   ($\pm$ 0.14 ) & 2.56   ($\pm$ 0.05 )  &   23473.19  \\ 
+Keygen returned: 0
+Encrypt returned: 0
+Decrypt returned: 0
+Memcmp returned: 0
