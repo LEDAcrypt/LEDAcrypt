@@ -1,10 +1,8 @@
 /**
  *
- * <niederreiter_keygen.h>
+ * Reference ISO-C11 Implementation of LEDAcrypt.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -36,8 +34,7 @@
 #include "rng.h"
 
 void key_gen_niederreiter(publicKeyNiederreiter_t   *const pk,
-                          privateKeyNiederreiter_t *const sk,
-                          AES_XOF_struct *keys_expander);
+                          privateKeyNiederreiter_t *const sk);
 
 void publicKey_deletion_niederreiter(publicKeyNiederreiter_t    *const pk);
 void privateKey_deletion_niederreiter(privateKeyNiederreiter_t *const sk);

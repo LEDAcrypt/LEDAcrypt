@@ -1,10 +1,8 @@
 /**
  *
- * <api.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -31,20 +29,22 @@
  **/
 
 #pragma once
+
 #include "qc_ldpc_parameters.h"
 #include "gf2x_limbs.h"
 #include "gf2x_arith_mod_xPplusOne.h"
+#include "mceliece.h"
 
-#define CRYPTO_ALGNAME "LEDApkc"
+#define CRYPTO_ALGNAME "LEDAPKC"
 
 /* size in bytes of the secret key */
-#define  CRYPTO_SECRETKEYBYTES TRNG_BYTE_LENGTH+1
+#define  CRYPTO_SECRETKEYBYTES (sizeof(privateKeyMcEliece_t))
 
 /* size in bytes of the public key */
-#define  CRYPTO_PUBLICKEYBYTES (N0-1)*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B
+#define  CRYPTO_PUBLICKEYBYTES (sizeof(publicKeyMcEliece_t))
 
 /* size in bytes of maximum overhead on the encrypted message */
-#define  CRYPTO_BYTES N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B
+#define  CRYPTO_BYTES (N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B)
 
 /*----------------------------------------------------------------------------*/
 /*                                  PKC API                                   */

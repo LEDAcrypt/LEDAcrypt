@@ -1,10 +1,8 @@
 /**
  *
- * <mceliece_cca2_encrypt.h>
+ * Reference ISO-C11 Implementation of LEDAcrypt.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *

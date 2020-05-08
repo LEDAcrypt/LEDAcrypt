@@ -1,10 +1,8 @@
 /**
  *
- * <niederreiter.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -35,14 +33,16 @@
 #include "gf2x_limbs.h"
 #include "gf2x_arith_mod_xPplusOne.h"
 
-
 /*----------------------------------------------------------------------------*/
 #pragma pack(1)
 
 typedef struct {
    /* raw entropy extracted from TRNG, will be deterministically expanded into
-    * H and Q during decryption */
+    * H during decryption */
    unsigned char prng_seed[TRNG_BYTE_LENGTH];
+   uint8_t rejections;
+   uint8_t secondIterThreshold;
+   uint8_t decryption_failure_secret[TRNG_BYTE_LENGTH];
 } privateKeyNiederreiter_t;
 
 typedef struct {

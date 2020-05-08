@@ -1,10 +1,8 @@
 /**
  *
- * <niederreiter_decrypt.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -37,9 +35,8 @@
 
 /*----------------------------------------------------------------------------*/
 
-int decrypt_niederreiter(DIGIT err[],       // return 1 if everything is ok
-                         const privateKeyNiederreiter_t *const sk,
-                         const DIGIT syndrome[]
-                        );
+void decrypt_niederreiter_indcca2(unsigned char *const ss,
+                                  const unsigned char *const ct,
+                                  const privateKeyNiederreiter_t *const sk);
 
 /*----------------------------------------------------------------------------*/

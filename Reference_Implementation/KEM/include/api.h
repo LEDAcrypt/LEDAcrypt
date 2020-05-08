@@ -1,10 +1,8 @@
 /**
  *
- * <api.h>
+ * Reference ISO-C11 Implementation of LEDAcrypt.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -35,23 +33,24 @@
 #include "qc_ldpc_parameters.h"
 #include "gf2x_limbs.h"
 #include "gf2x_arith_mod_xPplusOne.h"
+#include "niederreiter.h"
 
 #define CRYPTO_ALGNAME "LEDA"
 
 /* required bytes of input randomness */
-#define  CRYPTO_RANDOMBYTES TRNG_BYTE_LENGTH
+#define  CRYPTO_RANDOMBYTES (TRNG_BYTE_LENGTH)
 
 /* size in bytes of the secret key */
-#define  CRYPTO_SECRETKEYBYTES TRNG_BYTE_LENGTH
+#define  CRYPTO_SECRETKEYBYTES (sizeof(privateKeyNiederreiter_t))
 
 /* size in bytes of the public key */
-#define  CRYPTO_PUBLICKEYBYTES ((N0-1)*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B)
+#define  CRYPTO_PUBLICKEYBYTES (sizeof(publicKeyNiederreiter_t))
 
 /* size in bytes of the shared secret */
-#define  CRYPTO_BYTES HASH_BYTE_LENGTH
+#define  CRYPTO_BYTES (HASH_BYTE_LENGTH)
 
 /*size in bytes of the ciphertext*/
-#define  CRYPTO_CIPHERTEXTBYTES (NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B)
+#define  CRYPTO_CIPHERTEXTBYTES (NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B+CRYPTO_RANDOMBYTES)
 
 /* Your functions must return 0 to indicate success, -1 to indicate an error
  * condition */

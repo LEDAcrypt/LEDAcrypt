@@ -1,8 +1,8 @@
 /**
  *
- * @version 2.0 (March 2019)
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -27,6 +27,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
+
 
 #include "mceliece_cca2_encrypt.h"
 #include "gf2x_limbs.h"
@@ -74,7 +75,8 @@ void encrypt_McEliece(DIGIT codeword[],           // N0   polynomials
 
 /*----------------------------------------------------------------------------*/
 
-void char_right_bit_shift_n(const int length, uint8_t in[], const int amount) {
+void char_right_bit_shift_n(const int length, uint8_t in[], const int amount)
+{
    assert(amount < 8);
    if ( amount == 0 ) return;
    int j;
@@ -92,7 +94,7 @@ void char_right_bit_shift_n(const int length, uint8_t in[], const int amount) {
  * conversion */
 static
 int bytestream_into_poly_seq(DIGIT polySeq[], int numPoly,
-                             unsigned char * S,
+                             unsigned char *S,
                              const unsigned long byteLenS)
 {
    int padsize = (K%8) ? 8-(K%8) : 0;
@@ -129,11 +131,12 @@ int encrypt_Kobara_Imai(unsigned char *const output,
    uint64_t paddedSequenceLen;
    int isPaddedSequenceOnlyKBits=0;
    if(bytePtxLen<=MAX_BYTES_IN_IWORD) {
-     /*warning, in this case the padded sequence is exactly K bits*/
-     paddedSequenceLen =  (K+7)/8;
-     isPaddedSequenceOnlyKBits=1;
+      /*warning, in this case the padded sequence is exactly K bits*/
+      paddedSequenceLen =  (K+7)/8;
+      isPaddedSequenceOnlyKBits=1;
    } else {
-     paddedSequenceLen = KOBARA_IMAI_CONSTANT_LENGTH_B+KI_LENGTH_FIELD_SIZE+bytePtxLen;
+      paddedSequenceLen = KOBARA_IMAI_CONSTANT_LENGTH_B+KI_LENGTH_FIELD_SIZE
+                          +bytePtxLen;
    }
 
    unsigned char prngSequence[paddedSequenceLen];
@@ -152,38 +155,39 @@ int encrypt_Kobara_Imai(unsigned char *const output,
           KI_LENGTH_FIELD_SIZE);
    memcpy(output+KOBARA_IMAI_CONSTANT_LENGTH_B+KI_LENGTH_FIELD_SIZE,
           ptx,bytePtxLen);
-    for (int i = 0;i < paddedSequenceLen;i++){
-        output[i] ^= prngSequence[i];
-    }
-   if (isPaddedSequenceOnlyKBits==1){
-       output[paddedSequenceLen-1] &= ~(((uint8_t)0xFF) >> (K%8));
+   for (int i = 0; i < paddedSequenceLen; i++) {
+      output[i] ^= prngSequence[i];
+   }
+   if (isPaddedSequenceOnlyKBits==1) {
+      output[paddedSequenceLen-1] &= ~(((uint8_t)0xFF) >> (K%8));
    }
 
    /* prepare buffer which will be translated in the information word */
-   assert( (K+7)/8 == KOBARA_IMAI_CONSTANT_LENGTH_B+KI_LENGTH_FIELD_SIZE+MAX_BYTES_IN_IWORD+1);
+   assert( (K+7)/8 == KOBARA_IMAI_CONSTANT_LENGTH_B+KI_LENGTH_FIELD_SIZE
+           +MAX_BYTES_IN_IWORD+1);
    unsigned char iwordBuffer[(K+7)/8];
 
    memcpy(iwordBuffer, output, sizeof(iwordBuffer));
 
    /* transform into an information word poly sequence */
-   DIGIT informationWord[(N0-1)*NUM_DIGITS_GF2X_ELEMENT] ={0};
+   DIGIT informationWord[(N0-1)*NUM_DIGITS_GF2X_ELEMENT] = {0};
    bytestream_into_poly_seq(informationWord,N0-1,iwordBuffer,(K+7)/8);
 
    /* prepare hash of padded sequence, before leftover is moved to its final place */
-   unsigned char hashDigest[HASH_BYTE_LENGTH]={0};
+   unsigned char hashDigest[HASH_BYTE_LENGTH]= {0};
    HASH_FUNCTION(output,            // sequence to digest
                  paddedSequenceLen, // input Length
                  hashDigest);         // output
 
    /* move leftover padded string (if present) onto its final position*/
-   if (bytePtxLen>MAX_BYTES_IN_IWORD){
-   memmove(output+N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B,
-           output+sizeof(iwordBuffer)-1,
-           bytePtxLen-MAX_BYTES_IN_IWORD);
+   if (bytePtxLen>MAX_BYTES_IN_IWORD) {
+      memmove(output+N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B,
+              output+sizeof(iwordBuffer)-1,
+              bytePtxLen-MAX_BYTES_IN_IWORD);
 #if ((K%8)!=0)
-   /*clear partial leakage from leftover string, only happens if K%8 !=0 */
-   uint8_t initialLeftoverMask = ((uint8_t)0xFF) >> (K%8);
-   output[N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B] &= initialLeftoverMask ;
+      /*clear partial leakage from leftover string, only happens if K%8 !=0 */
+      uint8_t initialLeftoverMask = ((uint8_t)0xFF) >> (K%8);
+      output[N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B] &= initialLeftoverMask ;
 #endif
    }
 
@@ -191,7 +195,7 @@ int encrypt_Kobara_Imai(unsigned char *const output,
    unsigned char cwEncInputBuffer[HASH_BYTE_LENGTH+CWENC_EXTRA_RANDOMNESS_LEN];
    memcpy(cwEncInputBuffer,hashDigest,HASH_BYTE_LENGTH);
    for (unsigned i = 0; i < TRNG_BYTE_LENGTH; i++)
-         cwEncInputBuffer[i] ^= secretSeed[i];
+      cwEncInputBuffer[i] ^= secretSeed[i];
 
    DIGIT  cwEncodedError[N0*NUM_DIGITS_GF2X_ELEMENT];
    /* continue drawing fresh randomness in case the constant weight encoding

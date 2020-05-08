@@ -1,10 +1,8 @@
 /**
  *
- * <niederreiter_keygen.c>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -31,11 +29,10 @@
  **/
 
 #include "niederreiter_keygen.h"
-
 #include "H_Q_matrices_generation.h"
 #include "gf2x_arith_mod_xPplusOne.h"
 #include "rng.h"
-
+#include "dfr_test.h"
 #include <string.h>
 /*----------------------------------------------------------------------------*/
 /* Implementation that should never be optimized out by the compiler */
@@ -48,80 +45,51 @@ static inline void zeroize( void *v, size_t n )
 /*----------------------------------------------------------------------------*/
 
 void key_gen_niederreiter(publicKeyNiederreiter_t   *const pk,
-                          privateKeyNiederreiter_t *const sk,
-                          AES_XOF_struct *keys_expander)
+                          privateKeyNiederreiter_t *const sk)
 {
-   // sequence of N0 circ block matrices (p x p): Hi
+   AES_XOF_struct keys_expander;
+   memset(&keys_expander,0x00,sizeof(AES_XOF_struct));
+   randombytes(sk->prng_seed, TRNG_BYTE_LENGTH);
+   seedexpander_from_trng(&keys_expander, sk->prng_seed);
 
-   POSITION_T HPosOnes[N0][DV];
-   POSITION_T HtrPosOnes[N0][DV];
-   /* Sparse representation of the transposed circulant matrix H,
-   with weight DV. Each index contains the position of a '1' digit in the
-   corresponding Htr block */
+   POSITION_T HPosOnes[N0][V];
 
-   /* Sparse representation of the matrix (Q).
-   A matrix containing the positions of the ones in the circulant
-   blocks of Q. Each row contains the position of the
-   ones of all the blocks of a row of Q as exponent+
-   P*block_position */
-   POSITION_T QPosOnes[N0][M];
-
-   /*Rejection-sample for a full L*/
-   POSITION_T LPosOnes[N0][DV*M];
-   int is_L_full;
+   int isDFRok;
+   sk->rejections = (uint8_t) 0;
    do {
-     generateHPosOnes_HtrPosOnes(HPosOnes,
-                                 HtrPosOnes,
-                                 keys_expander);
+      generateHPosOnes(HPosOnes, &keys_expander);
+      sk->rejections = sk->rejections + 1;
+      isDFRok = DFR_test(HPosOnes, &(sk->secondIterThreshold));
+   } while(!isDFRok);
 
-     generateQsparse(QPosOnes,
-                     keys_expander);
-     for (int i = 0; i < N0; i++) {
-        for (int j = 0; j< DV*M; j++) {
-           LPosOnes[i][j]=INVALID_POS_VALUE;
-        }
-     }
+   sk->rejections = sk->rejections - 1;
 
-     POSITION_T auxPosOnes[DV*M];
-     unsigned char processedQOnes[N0] = {0};
-     for (int colQ = 0; colQ < N0; colQ++) {
-        for (int i = 0; i < N0; i++) {
-           gf2x_mod_mul_sparse(DV*M, auxPosOnes,
-                               DV, HPosOnes[i],
-                               qBlockWeights[i][colQ], QPosOnes[i]+processedQOnes[i]);
-           gf2x_mod_add_sparse(DV*M, LPosOnes[colQ],
-                               DV*M, LPosOnes[colQ],
-                               DV*M, auxPosOnes);
-           processedQOnes[i] += qBlockWeights[i][colQ];
-        }
-     }
-     is_L_full = 1;
-     for (int i = 0; i < N0; i++) {
-        is_L_full = is_L_full && (LPosOnes[i][DV*M-1] != INVALID_POS_VALUE);
-     }
-   } while(!is_L_full);
+   seedexpander(&keys_expander,
+                sk->decryption_failure_secret,
+                (unsigned long)TRNG_BYTE_LENGTH);
 
    DIGIT Ln0dense[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
-   for(int j = 0; j < DV*M; j++) {
-      if(LPosOnes[N0-1][j] != INVALID_POS_VALUE)
-         gf2x_set_coeff(Ln0dense,LPosOnes[N0-1][j],1);
-   }
-   DIGIT Ln0Inv[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
+   gf2x_mod_densify_CT(Ln0dense,HPosOnes[N0-1],V);
 
-#ifdef HIGH_PERFORMANCE_X86_64
-#define GF2X_DIGIT_MOD_INVERSE gf2x_mod_inverse_KTT
-#else
-#define GF2X_DIGIT_MOD_INVERSE gf2x_mod_inverse
-#endif
-   
+   DIGIT Ln0Inv[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
    GF2X_DIGIT_MOD_INVERSE(Ln0Inv, Ln0dense);
+
+#if (defined HIGH_PERFORMANCE_X86_64)
+   for (int i = 0; i < N0-1; i++) {
+      DIGIT Hdenseblock[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
+      gf2x_mod_densify_CT(Hdenseblock,HPosOnes[i],V);
+      gf2x_mod_mul(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT,
+                   (const DIGIT * const) Hdenseblock,
+                   Ln0Inv);
+   }
+#else
    for (int i = 0; i < N0-1; i++) {
       gf2x_mod_mul_dense_to_sparse(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT,
                                    Ln0Inv,
-                                   LPosOnes[i],
-                                   DV*M);
+                                   HPosOnes[i],
+                                   V);
    }
-
+#endif
    for (int i = 0; i < N0-1; i++) {
       gf2x_transpose_in_place(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT);
    }
@@ -131,7 +99,6 @@ void key_gen_niederreiter(publicKeyNiederreiter_t   *const pk,
 
 void publicKey_deletion_niederreiter(publicKeyNiederreiter_t   *const pk)
 {
-
    zeroize(pk,sizeof(publicKeyNiederreiter_t));
 } // publicKey_deletion_niederreiter
 

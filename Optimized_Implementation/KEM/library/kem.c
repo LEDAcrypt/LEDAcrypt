@@ -1,10 +1,8 @@
 /**
  *
- * <kem.c>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -35,66 +33,51 @@
 #include "niederreiter_decrypt.h"
 #include "rng.h"
 #include "sha3.h"
-#include <string.h>
+
 /* Generates a keypair - pk is the public key and sk is the secret key. */
 int crypto_kem_keypair( unsigned char *pk,
                         unsigned char *sk )
 {
 
-   AES_XOF_struct niederreiter_keys_expander;
-   randombytes( ((privateKeyNiederreiter_t *)sk)->prng_seed,
-                TRNG_BYTE_LENGTH);
-   seedexpander_from_trng(&niederreiter_keys_expander,
-                          ((privateKeyNiederreiter_t *)sk)->prng_seed);
-   key_gen_niederreiter((publicKeyNiederreiter_t *) pk,
-                        (privateKeyNiederreiter_t *) sk,
-                        &niederreiter_keys_expander);
-   return 0;
-}
+   key_gen_niederreiter((publicKeyNiederreiter_t *const) pk,
+                        (privateKeyNiederreiter_t *const) sk);
 
-/* Encrypt - pk is the public key, ct is a key encapsulation message
-  (ciphertext), ss is the shared secret.*/
+   return 0; // NIST convention: 0 == zero errors
+} // end crypto_kem_keypair
+
+/*----------------------------------------------------------------------------*/
+/* Encrypt - pk is the public key,
+ *           ct is a key encapsulation message (ciphertext),
+ *           ss is the shared secret.
+ */
 int crypto_kem_enc( unsigned char *ct,
                     unsigned char *ss,
                     const unsigned char *pk )
 {
 
-   AES_XOF_struct niederreiter_encap_key_expander;
-   unsigned char encapsulated_key_seed[TRNG_BYTE_LENGTH];
-   randombytes(encapsulated_key_seed,TRNG_BYTE_LENGTH);
-   seedexpander_from_trng(&niederreiter_encap_key_expander,encapsulated_key_seed);
+   encrypt_niederreiter_indcca2((unsigned char *const)
+                                ct, /* ciphertext - output   */
+                                (unsigned char *const) ss,  /* shared secret - output*/
+                                (const publicKeyNiederreiter_t *const) pk);
 
-   DIGIT error_vector[N0*NUM_DIGITS_GF2X_ELEMENT];
-   rand_circulant_blocks_sequence(error_vector,
-                                  NUM_ERRORS_T,
-                                  &niederreiter_encap_key_expander);
+   return 0; // NIST convention: 0 == zero errors
+} //end crypto_kem_enc
 
-   HASH_FUNCTION((const unsigned char *) error_vector,    // input
-                 (N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B), // input Length
-                 ss);
-
-   encrypt_niederreiter((DIGIT *) ct,(publicKeyNiederreiter_t *) pk, error_vector);
-   return 0;
-}
-
-
-/* Decrypt - ct is a key encapsulation message (ciphertext), sk is the private
-   key, ss is the shared secret */
-
+/*----------------------------------------------------------------------------*/
+/* Decrypt - ct is a key encapsulation message (ciphertext),
+ *           sk is the private key,
+ *           ss is the shared secret
+ */
 int crypto_kem_dec( unsigned char *ss,
                     const unsigned char *ct,
-                    const unsigned char *sk )
+                    const unsigned char *sk)
 {
-   DIGIT decoded_error_vector[N0*NUM_DIGITS_GF2X_ELEMENT];
 
-   int decode_ok = decrypt_niederreiter(decoded_error_vector,
-                                        (privateKeyNiederreiter_t *)sk,
-                                        (DIGIT *)ct);
-   HASH_FUNCTION((const unsigned char *) decoded_error_vector,
-                    (N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B),
-                    ss);
-   if (decode_ok == 1) {
-      return 0;
-   }
-   return 1;
-}
+   decrypt_niederreiter_indcca2((unsigned char *const) ss,
+                                (const unsigned char *const) ct,
+                                (const privateKeyNiederreiter_t *const) sk);
+
+   return 0; // NIST convention: 0 == zero errors
+} // end crypto_kem_dec
+
+/*----------------------------------------------------------------------------*/

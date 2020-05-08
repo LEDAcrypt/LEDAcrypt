@@ -1,10 +1,8 @@
 /**
  *
- * <qc_ldpc_parameters.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt KEM cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -29,46 +27,107 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
+
 #pragma once
 // CATEGORY defined in the makefile
+#if (CATEGORY == 1) && (N0 == 2) && (DFR_SL_LEVEL ==0)
+#define    P  (23371)
+#define    V  (71)
+#define    NUM_ERRORS_T  (130)
+#endif
+#if (CATEGORY == 1) && (N0 == 3) && (DFR_SL_LEVEL ==0)
+#define    P  (16067)
+#define    V  (79)
+#define    NUM_ERRORS_T  (83)
+#endif
+#if (CATEGORY == 1) && (N0 == 4) && (DFR_SL_LEVEL ==0)
+#define    P  (13397)
+#define    V  (83)
+#define    NUM_ERRORS_T  (66)
+#endif
+#if (CATEGORY == 1) && (N0 == 2) && (DFR_SL_LEVEL ==1)
+#define    P  (28277)
+#define    V  (69)
+#define    NUM_ERRORS_T  (129)
+#endif
+#if (CATEGORY == 1) && (N0 == 3) && (DFR_SL_LEVEL ==1)
+#define    P  (19709)
+#define    V  (79)
+#define    NUM_ERRORS_T  (82)
+#endif
+#if (CATEGORY == 1) && (N0 == 4) && (DFR_SL_LEVEL ==1)
+#define    P  (16229)
+#define    V  (83)
+#define    NUM_ERRORS_T  (65)
+#endif
 
-/*----------------------------------------------------------------------------*/
+#if (CATEGORY == 3) && (N0 == 2) && (DFR_SL_LEVEL ==0)
+#define    P  (40787)
+#define    V  (103)
+#define    NUM_ERRORS_T  (195)
+#endif
+#if (CATEGORY == 3) && (N0 == 3) && (DFR_SL_LEVEL ==0)
+#define    P  (28411)
+#define    V  (117)
+#define    NUM_ERRORS_T  (124)
+#endif
+#if (CATEGORY == 3) && (N0 == 4) && (DFR_SL_LEVEL ==0)
+#define    P  (22901)
+#define    V  (123)
+#define    NUM_ERRORS_T  (98)
+#endif
+#if (CATEGORY == 3) && (N0 == 2) && (DFR_SL_LEVEL ==1)
+#define    P  (52667)
+#define    V  (103)
+#define    NUM_ERRORS_T  (195)
+#endif
+#if (CATEGORY == 3) && (N0 == 3) && (DFR_SL_LEVEL ==1)
+#define    P  (36629)
+#define    V  (115)
+#define    NUM_ERRORS_T  (123)
+#endif
+#if (CATEGORY == 3) && (N0 == 4) && (DFR_SL_LEVEL ==1)
+#define    P  (30803)
+#define    V  (123)
+#define    NUM_ERRORS_T  (98)
+#endif
+
+#if (CATEGORY == 5) && (N0 == 2) && (DFR_SL_LEVEL ==0)
+#define    P  (61717)
+#define    V  (137)
+#define    NUM_ERRORS_T  (261)
+#endif
+#if (CATEGORY == 5) && (N0 == 3) && (DFR_SL_LEVEL ==0)
+#define    P  (42677)
+#define    V  (153)
+#define    NUM_ERRORS_T  (165)
+#endif
+#if (CATEGORY == 5) && (N0 == 4) && (DFR_SL_LEVEL ==0)
+#define    P  (35507)
+#define    V  (163)
+#define    NUM_ERRORS_T  (131)
+#endif
+#if (CATEGORY == 5) && (N0 == 2) && (DFR_SL_LEVEL ==1)
+#define    P  (83579)
+#define    V  (135)
+#define    NUM_ERRORS_T  (260)
+#endif
+#if (CATEGORY == 5) && (N0 == 3) && (DFR_SL_LEVEL ==1)
+#define    P  (58171)
+#define    V  (153)
+#define    NUM_ERRORS_T  (165)
+#endif
+#if (CATEGORY == 5) && (N0 == 4) && (DFR_SL_LEVEL ==1)
+#define    P  (48371)
+#define    V  (161)
+#define    NUM_ERRORS_T  (131)
+#endif
+
 #if CATEGORY == 1
+
 #define TRNG_BYTE_LENGTH (24)
 #define    HASH_FUNCTION sha3_256
 #define HASH_BYTE_LENGTH (32)
-// N0 defined in the makefile
-#if N0 == 2
-#define    P  (14939)  // modulus(x) = x^P-1
-#define    DV (11)  // odd number
-#define    M  (7)
-#define    M0 (4)
-#define    M1 (3)
-#define    NUM_ERRORS_T   (136)
-
-#elif N0 == 3
-#define    P  (8269)  // modulus(x) = x^P-1
-#define    DV (9)  // odd number
-#define    M  (9)
-#define    M0 (4)
-#define    M1 (3)
-#define    M2 (2)
-#define    NUM_ERRORS_T   (86)
-
-#elif N0 == 4
-#define    P  (7547)  // modulus(x) = x^P-1
-#define    DV (13)  // odd number
-#define    M  (7)
-#define    M0 (2)
-#define    M1 (2)
-#define    M2 (2)
-#define    M3 (1)
-#define    NUM_ERRORS_T   (69)
-
-#else
-#error "Unsupported number of circulant blocks"
-#endif
-#endif // end CATEGORY == 1
 
 /*----------------------------------------------------------------------------*/
 
@@ -80,42 +139,11 @@
 
 /*----------------------------------------------------------------------------*/
 
-#if (CATEGORY == 2) || (CATEGORY == 3)
+#elif (CATEGORY == 2) || (CATEGORY == 3)
+
 #define TRNG_BYTE_LENGTH (32)
 #define    HASH_FUNCTION sha3_384
 #define HASH_BYTE_LENGTH (48)
-// N0 defined in the makefile
-#if N0 == 2
-#define    P  (25693)  // modulus(x) = x^P-1
-#define    DV (13)  // odd number
-#define    M  (9)
-#define    M0 (5)
-#define    M1 (4)
-#define    NUM_ERRORS_T   (199)
-
-#elif N0 == 3
-#define    P  (16067)  // modulus(x) = x^P-1
-#define    DV (11)  // odd number
-#define    M  (11)
-#define    M0 (4)
-#define    M1 (4)
-#define    M2 (3)
-#define    NUM_ERRORS_T   (127)
-
-#elif N0 == 4
-#define    P  (14341)  // modulus(x) = x^P-1
-#define    DV (15)  // odd number
-#define    M  (9)
-#define    M0 (3)
-#define    M1 (2)
-#define    M2 (2)
-#define    M3 (2)
-#define    NUM_ERRORS_T   (101)
-
-#else
-#error "Unsupported number of circulant blocks"
-#endif
-#endif
 
 /*----------------------------------------------------------------------------*/
 
@@ -129,62 +157,16 @@
 
 /*----------------------------------------------------------------------------*/
 
-#if (CATEGORY == 4) || (CATEGORY == 5)
+#elif (CATEGORY == 4) || (CATEGORY == 5)
+
 #define TRNG_BYTE_LENGTH (40)
 #define    HASH_FUNCTION  sha3_512
 #define HASH_BYTE_LENGTH (64)
-// N0 defined in the makefile
-#if N0 == 2
-#define    P  (36877)  // modulus(x) = x^P-1
-#define    DV (11)  // odd number
-#define    M  (13)
-#define    M0 (7)
-#define    M1 (6)
-#define    NUM_ERRORS_T   (267)
-
-#elif N0 == 3
-#define    P  (27437)  // modulus(x) = x^P-1
-#define    DV (15)  // odd number
-#define    M  (11)
-#define    M0 (4)
-#define    M1 (4)
-#define    M2 (3)
-#define    NUM_ERRORS_T   (169)
-
-#elif N0 == 4
-#define    P  (22691)  // modulus(x) = x^P-1
-#define    DV (13)  // odd number
-#define    M  (13)
-#define    M0 (4)
-#define    M1 (3)
-#define    M2 (3)
-#define    M3 (3)
-#define    NUM_ERRORS_T   (134)
-
 #else
-#error "Unsupported number of circulant blocks"
+#error "Unsupported Category"
 #endif
-#endif
-/*----------------------------------------------------------------------------*/
 
 // Derived parameters, they are useful for QC-LDPC algorithms
 #define HASH_BIT_LENGTH (HASH_BYTE_LENGTH << 3)
 #define               K ((N0-1)*P)
 #define               N (N0*P)
-#define              DC (N0*DV)
-
-// Circulant weight structure of the Q matrix, specialized per value of N0
-
-#if N0 == 2
-#define    Q_BLOCK_WEIGHTS  {{M0,M1},{M1,M0}}
-#elif N0 == 3
-#define    Q_BLOCK_WEIGHTS  {{M0,M1,M2},{M2,M0,M1},{M1,M2,M0}}
-#elif N0 == 4
-#define    Q_BLOCK_WEIGHTS  {{M0,M1,M2,M3},{M3,M0,M1,M2},{M2,M3,M0,M1},{M1,M2,M3,M0}}
-#else
-#error "Unsupported number of circulant blocks"
-#endif
-
-static const unsigned char qBlockWeights[N0][N0] = Q_BLOCK_WEIGHTS;
-
-/*----------------------------------------------------------------------------*/

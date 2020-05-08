@@ -1,10 +1,8 @@
 /**
  *
- * <mceliece_keygen.h>
+ * Reference ISO-C11 Implementation of LEDAcrypt.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -34,9 +32,8 @@
 #include "mceliece.h"
 #include "rng.h"
 
-void mceliece_keygen( publicKeyMcEliece_t   *const pk,
-                      privateKeyMcEliece_t *const sk,
-                      AES_XOF_struct *keys_expander);
+void key_gen_mceliece( publicKeyMcEliece_t   *const pk,
+                       privateKeyMcEliece_t *const sk);
 void publicKey_deletion_McEliece(publicKeyMcEliece_t   *const pk);
 void privateKey_deletion_McEliece(privateKeyMcEliece_t *const sk);
 

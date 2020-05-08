@@ -1,8 +1,8 @@
 /**
  *
- * @version 2.0 (March 2019)
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -33,87 +33,67 @@
 #include "gf2x_arith_mod_xPplusOne.h"
 #include "rng.h"
 #include "dfr_test.h"
+#include <string.h>
+
+
+/*----------------------------------------------------------------------------*/
+/* Implementation that should never be optimized out by the compiler */
+static inline void zeroize( void *v, size_t n )
+{
+   volatile unsigned char *p = v;
+   while( n-- ) *p++ = 0;
+} // end zeroize
 
 /*----------------------------------------------------------------------------*/
 
-void mceliece_keygen(publicKeyMcEliece_t   *const pk,
-                     privateKeyMcEliece_t *const sk,
-                     AES_XOF_struct *keys_expander)
+void key_gen_mceliece(publicKeyMcEliece_t   *const pk,
+                      privateKeyMcEliece_t *const sk)
 {
-   POSITION_T HtrPosOnes[N0][DV];
-   POSITION_T HPosOnes[N0][DV];
-   POSITION_T QPosOnes[N0][M];
-   POSITION_T LPosOnes[N0][DV*M];
+   AES_XOF_struct keys_expander;
+   memset(&keys_expander,0x00,sizeof(AES_XOF_struct));
+   randombytes(sk->prng_seed, TRNG_BYTE_LENGTH);
+   seedexpander_from_trng(&keys_expander, sk->prng_seed);
 
-   int is_L_full;
+   POSITION_T HPosOnes[N0][V];
+
    int isDFRok;
-   sk->rejections = (int8_t) 0;
+   sk->rejections = (uint8_t) 0;
    do {
-     generateHPosOnes_HtrPosOnes(HPosOnes,
-                                 HtrPosOnes,
-                                 keys_expander);
-
-     generateQsparse(QPosOnes,
-                     keys_expander);
-     for (int i = 0; i < N0; i++) {
-        for (int j = 0; j< DV*M; j++) {
-           LPosOnes[i][j]=INVALID_POS_VALUE;
-        }
-     }
-
-     POSITION_T auxPosOnes[DV*M];
-     unsigned char processedQOnes[N0] = {0};
-     for (int colQ = 0; colQ < N0; colQ++) {
-        for (int i = 0; i < N0; i++) {
-           gf2x_mod_mul_sparse(DV*M, auxPosOnes,
-                               DV, HPosOnes[i],
-                               qBlockWeights[i][colQ], QPosOnes[i]+processedQOnes[i]);
-           gf2x_mod_add_sparse(DV*M, LPosOnes[colQ],
-                               DV*M, LPosOnes[colQ],
-                               DV*M, auxPosOnes);
-           processedQOnes[i] += qBlockWeights[i][colQ];
-        }
-     }
-     is_L_full = 1;
-     for (int i = 0; i < N0; i++) {
-        is_L_full = is_L_full && (LPosOnes[i][DV*M-1] != INVALID_POS_VALUE);
-     }
-     sk->rejections = sk->rejections + 1;
-    
-     if(is_L_full) {isDFRok = DFR_test(LPosOnes);}
-   } while(!is_L_full || !isDFRok );
+      generateHPosOnes(HPosOnes, &keys_expander);
+      sk->rejections = sk->rejections + 1;
+      isDFRok = DFR_test(HPosOnes, &(sk->secondIterThreshold));
+   } while(!isDFRok);
    sk->rejections = sk->rejections - 1;
 
+
    DIGIT Ln0dense[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
-   for(int j = 0; j < DV*M; j++) {
-      if(LPosOnes[N0-1][j] != INVALID_POS_VALUE)
-         gf2x_set_coeff(Ln0dense,LPosOnes[N0-1][j],1);
-   }
+   gf2x_mod_densify_CT(Ln0dense,HPosOnes[N0-1],V);
 
    DIGIT Ln0Inv[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
    GF2X_DIGIT_MOD_INVERSE(Ln0Inv, Ln0dense);
 
+#if (defined HIGH_PERFORMANCE_X86_64)
+   for (int i = 0; i < N0-1; i++) {
+      DIGIT Hdenseblock[NUM_DIGITS_GF2X_ELEMENT] = {0x00};
+      gf2x_mod_densify_CT(Hdenseblock,HPosOnes[i],V);
+      gf2x_mod_mul(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT,
+                   (const DIGIT * const) Hdenseblock,
+                   Ln0Inv);
+   }
+#else
    for (int i = 0; i < N0-1; i++) {
       gf2x_mod_mul_dense_to_sparse(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT,
                                    Ln0Inv,
-                                   LPosOnes[i],
-                                   DV*M);
+                                   HPosOnes[i],
+                                   V);
    }
+#endif
 
    for (int i = 0; i < N0-1; i++) {
       gf2x_transpose_in_place(pk->Mtr+i*NUM_DIGITS_GF2X_ELEMENT);
    }
 } // end mceliece_keygen
 
-
-/*----------------------------------------------------------------------------*/
-/* Implementation that should never be optimized out by the compiler */
-
-static inline void zeroize( void *v, size_t n )
-{
-   volatile unsigned char *p = v;
-   while( n-- ) *p++ = 0;
-} // end zeroize
 
 void publicKey_deletion_McEliece(publicKeyMcEliece_t   *const pk)
 {

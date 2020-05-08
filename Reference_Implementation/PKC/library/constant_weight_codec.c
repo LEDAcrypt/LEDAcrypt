@@ -1,10 +1,8 @@
 /**
  *
- * <constant_weight_codec.c>
+ * Reference ISO-C11 Implementation of LEDAcrypt.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -29,25 +27,16 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
-
 #include "constant_weight_codec.h"
-
-#include <assert.h>
+#include "djbsort.h"
 #include <string.h>
 
-/* bits will be written to the output matching the same convention of the
- * bitstream read, i.e., in the same order as they appear in the natural
- * encoding of the uint64_t, with the most significant bit being written
- * as the first one in the output bitstream, starting in the output_bit_cursor
- * position */
-
-void bitstream_write(unsigned char *output,
-                     const unsigned int amount_to_write,
-                     unsigned int *output_bit_cursor,
-                     uint64_t value_to_write)
+void bitstream_write_construction(unsigned char *output,
+                                  const unsigned int amount_to_write,
+                                  unsigned int *output_bit_cursor,
+                                  uint64_t value_to_write)
 {
    if (amount_to_write == 0) return;
-   assert(amount_to_write <= 64);
    unsigned int bit_cursor_in_char = *output_bit_cursor % 8;
    unsigned int byte_cursor = *output_bit_cursor / 8;
    unsigned int remaining_bits_in_char = 8-bit_cursor_in_char;
@@ -96,7 +85,72 @@ void bitstream_write(unsigned char *output,
    } // end else
 } // end bitstream_write
 
+/* bits will be written to the output matching the same convention of the
+ * bitstream read, i.e., in the same order as they appear in the natural
+ * encoding of the uint64_t, with the most significant bit being written
+ * as the first one in the output bitstream, starting in the output_bit_cursor
+ * position */
 
+void bitstream_write(unsigned char *output,
+                     const unsigned int amount_to_write,
+                     unsigned int output_bit_cursor,
+                     uint64_t value_to_write)
+{
+   if (amount_to_write == 0) return;
+   unsigned int bit_cursor_in_char = output_bit_cursor % 8;
+   unsigned int byte_cursor = output_bit_cursor / 8;
+   unsigned int remaining_bits_in_char = 8 - bit_cursor_in_char;
+
+   if (amount_to_write <= remaining_bits_in_char) {
+      uint64_t cleanup_mask = ( ( (uint64_t) 1 << amount_to_write ) - 1);
+      cleanup_mask = cleanup_mask << (remaining_bits_in_char - amount_to_write);
+      cleanup_mask = ~cleanup_mask;
+      uint64_t buffer = output[byte_cursor];
+
+      buffer = (buffer & cleanup_mask) | (value_to_write << (remaining_bits_in_char
+                                          - amount_to_write));
+      output[byte_cursor] = (unsigned char) buffer;
+      output_bit_cursor += amount_to_write;
+   } else {
+      /*copy remaining_bits_in_char, allowing further copies to be byte aligned */
+      uint64_t write_buffer = value_to_write >> (amount_to_write -
+                              remaining_bits_in_char);
+      uint64_t cleanup_mask = ~((1 << remaining_bits_in_char) - 1);
+
+      uint64_t buffer = output[byte_cursor];
+      buffer = (buffer & cleanup_mask) | write_buffer;
+      output[byte_cursor] = buffer;
+      output_bit_cursor += remaining_bits_in_char;
+      byte_cursor = output_bit_cursor / 8;
+
+      /*write out as many as possible full bytes*/
+      uint64_t still_to_write = amount_to_write - remaining_bits_in_char;
+      while (still_to_write > 8) {
+         write_buffer = value_to_write >> (still_to_write - 8) & (uint64_t) 0xFF;
+         output[byte_cursor] = write_buffer;
+         output_bit_cursor += 8;
+         byte_cursor++;
+         still_to_write -= 8;
+      } // end while
+      /*once here, only the still_to_write-LSBs of value_to_write are to be written
+       * with their MSB as the MSB of the output[byte_cursor] */
+      if (still_to_write > 0) {
+         write_buffer = value_to_write & ((1 << still_to_write) - 1);
+         uint64_t cleanup_mask = ~(((1 << still_to_write) - 1) << (8 - still_to_write));
+         write_buffer = write_buffer << (8 - still_to_write);
+
+         output[byte_cursor] &= cleanup_mask;
+         output[byte_cursor] |= write_buffer;
+         output_bit_cursor += still_to_write;
+      } // end if
+   } // end else
+#if (defined HIGH_PERFORMANCE_X86_64)
+   _mm_mfence();
+#endif
+} // end bitstream_write
+
+
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*
  * Input bitstream read as called by constantWeightEncoding
@@ -108,7 +162,6 @@ uint64_t bitstream_read(const unsigned char *const stream,
                         unsigned int *bit_cursor)
 {
    if(bit_amount == 0) return (uint64_t)0;
-   assert(bit_amount <=64);
    uint64_t extracted_bits=0;
    int bit_cursor_in_char = *bit_cursor % 8;
    int remaining_bits_in_char = 8 - bit_cursor_in_char;
@@ -143,186 +196,212 @@ uint64_t bitstream_read(const unsigned char *const stream,
    return extracted_bits;
 } // end bitstream_read
 
-/*----------------------------------------------------------------------------*/
-/* returns the portion of the bitstream read, padded with zeroes if the
-   bitstream has less bits than required. Updates the value of the bit cursor */
-static
-uint64_t bitstream_read_padded (const unsigned char *const stream,
-                                const unsigned int bitAmount,
-                                const unsigned int bitstreamLength,
-                                unsigned int *const bitCursor)
-{
-   uint64_t readBitstreamFragment;
-   if ( (*bitCursor+bitAmount) < bitstreamLength) {
-      readBitstreamFragment = bitstream_read(stream, bitAmount, bitCursor);
-   } else {
-      /*if remaining bits are not sufficient, pad with enough zeroes */
-      unsigned int available_bits =  bitstreamLength-*bitCursor;
-      if (available_bits) {
-         readBitstreamFragment = bitstream_read(stream, available_bits, bitCursor);
-         readBitstreamFragment = readBitstreamFragment << (bitAmount - available_bits);
-      } else {
-         readBitstreamFragment = 0;
-      }
-   }
-   return readBitstreamFragment;
-} // end bitstream_read_padded
+#define COND_EXP2(COND,TRUE,FALSE) ( ((COND)*(TRUE)) | (!(COND)*(FALSE)) )
+#define CONVTOMASK(x) ((uint32_t)0 -x)
+#define COND_EXP(COND,TRUE,FALSE) ( ( CONVTOMASK(COND)&(TRUE)) | (CONVTOMASK(!(COND))&(FALSE)) )
 
-/*----------------------------------------------------------------------------*/
+
+void ct_store(POSITION_T *v, int index, POSITION_T value)
+{
+#if (defined HIGH_PERFORMANCE_X86_64)
+   _mm_stream_si32 ((int *)(v+index), value);
+   _mm_mfence();
+#else
+   for(int i=0; i< NUM_ERRORS_T ; i++) {
+      POSITION_T commitmask = (POSITION_T)0 - (i == index);
+      v[i] = (value & commitmask) | (v[i] & ~commitmask);
+   }
+#endif
+}
 
 static inline
-void estimate_d_u(unsigned *d, unsigned *u, const unsigned n, const unsigned t)
+uint64_t bitstream_read_single_bit(const unsigned char *const stream,
+                                   const unsigned int bitCursor)
 {
+   int index = bitCursor /8;
+   int posInByte = bitCursor %8;
+   unsigned char mask = ((unsigned char) 0x80) >> posInByte;
+   return (stream[index] & mask)!=0;
+}
 
-   *d= 0.69315 * ((double)n - ( (double)t - 1.0)/2.0) /((double) t);
-   *u = 0;
-   unsigned tmp = *d;
-   while(tmp) {
-      tmp >>= 1;
-      *u = *u +1;
+static inline
+uint64_t rand_range_cwenc(uint64_t s, AES_XOF_struct *cwenc_randomness_gen)
+{
+   uint64_t x;
+   seedexpander(cwenc_randomness_gen, (unsigned char *)&x, sizeof(uint64_t));
+   __uint128_t m = (__uint128_t) x * (__uint128_t) s;
+   uint64_t l = (uint64_t) m;
+   if (l < s) {
+      uint64_t t = -s % s;
+      while (l < t) {
+         seedexpander(cwenc_randomness_gen, (unsigned char *)&x, sizeof(uint64_t));
+         m = (__uint128_t) x * (__uint128_t) s;
+         l = (uint64_t) m;
+      }
    }
-} //end bitstream_read_padded
+   return m >> 64;
+}
 
-/*----------------------------------------------------------------------------*/
-/* Encodes a bit string into a constant weight N0 polynomials vector*/
-void constant_weight_to_binary_approximate(unsigned char *const bitstreamOut,
-      const DIGIT constantWeightIn[])
+
+static
+int constant_time_bin_to_pos(POSITION_T positionsOut[NUM_ERRORS_T],
+                             const unsigned char *const bitstreamIn)
 {
-   unsigned int distancesBetweenOnes[NUM_ERRORS_T] = {0};
+
+   unsigned char prng_seed[TRNG_BYTE_LENGTH];
+   AES_XOF_struct cwenc_randomness_gen;
+   randombytes(prng_seed, TRNG_BYTE_LENGTH);
+   seedexpander_from_trng(&cwenc_randomness_gen, prng_seed);
+
+
+   POSITION_T runLengths[NUM_ERRORS_T]= {0};
+   POSITION_T remaining_zeroes = N0*P-NUM_ERRORS_T;
+   unsigned int bitstreamCursor = 0;
+   POSITION_T current_lambda_idx=0;
+   POSITION_T read_bit=0;
+   POSITION_T quotient=0,quotient_complete=0;
+
+   POSITION_T r=0, r_bit_counter=0, is_r_complete;
+   POSITION_T lambda, is_lambda_complete;
+
+   for(int i=0; i<MAX_PREFIX_LEN; i++) {
+
+      read_bit = bitstream_read_single_bit(bitstreamIn,bitstreamCursor);
+      quotient_complete = quotient_complete | !read_bit;
+      bitstreamCursor++;
+
+      quotient = quotient + (read_bit & !(quotient_complete));
+      r_bit_counter += quotient_complete;
+      is_r_complete = (DIVISOR_POWER_OF_TWO - r_bit_counter) & 0x80000000;
+      is_r_complete = (POSITION_T)0 - (is_r_complete >> 31);
+      r= (r << 1) | (read_bit & quotient_complete);
+      lambda = quotient*DIVISOR+r;
+      ct_store(runLengths, current_lambda_idx, lambda);
+
+      is_lambda_complete = (is_r_complete) & (quotient_complete);
+      current_lambda_idx = COND_EXP(is_lambda_complete,current_lambda_idx+1,
+                                    current_lambda_idx);
+      remaining_zeroes = COND_EXP(is_lambda_complete,remaining_zeroes-lambda,
+                                  remaining_zeroes);
+
+      quotient = COND_EXP(is_lambda_complete,0,quotient);
+      quotient_complete = COND_EXP(is_lambda_complete,0,quotient_complete);
+      r = COND_EXP(is_lambda_complete,0,r);
+      r_bit_counter = COND_EXP(is_lambda_complete,0,r_bit_counter);
+   }
+
+   DIGIT case_partial_quotient = !(quotient_complete);
+   int range;
+   range = remaining_zeroes-lambda;
+   lambda = COND_EXP(case_partial_quotient,lambda+rand_range_cwenc(range+1,
+                     &cwenc_randomness_gen),lambda);
+
+   DIGIT case_full_quotient = (quotient_complete) & (r_bit_counter == 1);
+   range = COND_EXP((range > (DIVISOR-1)),(DIVISOR-1),range);
+   lambda = COND_EXP(case_full_quotient,lambda+rand_range_cwenc(range+1,
+                     &cwenc_randomness_gen),lambda);
+
+   DIGIT case_partial_remainder = (quotient_complete) & !(is_lambda_complete) &
+                                  (r_bit_counter > 1);
+   int missing_remainder_bits = DIVISOR_POWER_OF_TWO+1-r_bit_counter;
+   range = (1 << missing_remainder_bits )-1 ;
+   lambda = COND_EXP(case_partial_remainder,
+                     (r << missing_remainder_bits) + quotient * DIVISOR +rand_range_cwenc(range+1,
+                           &cwenc_randomness_gen),lambda);
+
+   ct_store(runLengths, current_lambda_idx, lambda);
+   current_lambda_idx = COND_EXP(!is_lambda_complete,current_lambda_idx+1,
+                                 current_lambda_idx);
+   remaining_zeroes = COND_EXP(!is_lambda_complete,remaining_zeroes-lambda,
+                               remaining_zeroes);
+
+   for(int i = 0; i < NUM_ERRORS_T; i++) {
+      int need_random_lambda = (i >= current_lambda_idx);
+      lambda = runLengths[current_lambda_idx];
+      lambda = COND_EXP(need_random_lambda,rand_range_cwenc(remaining_zeroes+1,
+                        &cwenc_randomness_gen),lambda);
+
+      ct_store(runLengths, current_lambda_idx, lambda);
+      current_lambda_idx = COND_EXP(need_random_lambda,current_lambda_idx+1,
+                                    current_lambda_idx);
+      remaining_zeroes = COND_EXP(need_random_lambda,remaining_zeroes-lambda,
+                                  remaining_zeroes);
+   }
+
+   /*encode ones according to runLengths into constantWeightOut */
+   int current_one_position = -1;
+   for (int i = 0; i < NUM_ERRORS_T; i++) {
+      current_one_position += runLengths[i] + 1;
+      positionsOut[i] = current_one_position;
+   }
+   return 1;
+}
+
+static
+void constant_time_pos_to_bin(unsigned char *bitstreamOut,
+                              const int trimOutLength,
+                              POSITION_T positionsIn[NUM_ERRORS_T])
+{
+   unsigned int runLengths[NUM_ERRORS_T] = {0};
 
    /*compute the array of inter-ones distances. Note that there
     is an implicit one out of bounds to compute the first distance from */
-   unsigned int last_one_position=-1;
-   unsigned int idxDistances=0;
+   unsigned int idxDistances = 0;
 
-   for(unsigned int current_inspected_position = 0;
-         current_inspected_position< N0*P; current_inspected_position++) {
-      unsigned int current_inspected_exponent, current_inspected_poly;
-      current_inspected_exponent = current_inspected_position %P;
-      current_inspected_poly = current_inspected_position / P;
-      if( gf2x_get_coeff(constantWeightIn
-                         +current_inspected_poly*NUM_DIGITS_GF2X_ELEMENT,
-                         current_inspected_exponent) == 1) {
-         distancesBetweenOnes[idxDistances]= current_inspected_position -
-                                             last_one_position - 1;
-         last_one_position = current_inspected_position;
-         idxDistances++;
-      }
+   /* compute run lengths from one positions */
+   runLengths[0]=positionsIn[0]-0;
+
+   for (int i = 1; i<NUM_ERRORS_T; i++) {
+      runLengths[i] = positionsIn[i] - positionsIn[i-1] /*remove the 1*/ - 1;
    }
-   assert(idxDistances == NUM_ERRORS_T);
 
    /* perform encoding of distances into binary string*/
-   unsigned int onesStillToPlaceOut = NUM_ERRORS_T;
-   unsigned int inPositionsStillAvailable = N0*P;
+   unsigned int outputBitCursor = 0;
 
-   unsigned int outputBitCursor=0;
-   unsigned int d;
-   unsigned int u;
-
-   for (idxDistances = 0; idxDistances< NUM_ERRORS_T; idxDistances++) {
-      estimate_d_u(&d, &u, inPositionsStillAvailable, onesStillToPlaceOut);
-
-      unsigned int quotient;
-      if(d != 0) {
-        quotient = distancesBetweenOnes[idxDistances] / d;
-      } else {
-          return;
+   for (idxDistances = 0; idxDistances < NUM_ERRORS_T; idxDistances++) {
+      unsigned int quotient = runLengths[idxDistances] / DIVISOR;
+      for (int outbit=0; outbit<quotient; outbit++) {
+         bitstream_write(bitstreamOut,1,
+                         outputBitCursor,(uint64_t) 1);
+         outputBitCursor++;
       }
-      /* write out quotient in unary, with the trailing 0, i.e., 1^*0 */
-      bitstream_write(bitstreamOut,
-                      quotient+1,
-                      &outputBitCursor,
-                      ( ((((uint64_t) 1) << quotient ) -1) << 1));
+      bitstream_write(bitstreamOut,1,
+                      outputBitCursor,(uint64_t) 0);
+      outputBitCursor++;
+      unsigned int remainder = runLengths[idxDistances] % DIVISOR;
+      bitstream_write(bitstreamOut, DIVISOR_POWER_OF_TWO, outputBitCursor, remainder);
+      outputBitCursor += DIVISOR_POWER_OF_TWO;
 
-      unsigned int remainder = distancesBetweenOnes[idxDistances] % d;
-      if(remainder < ((1 << u) - d)) {
-         u = u>0 ? u-1 : 0; // clamp u-minus-one to zero
-         bitstream_write(bitstreamOut,u,&outputBitCursor,remainder);
-      } else {
-         bitstream_write(bitstreamOut,
-                         u,
-                         &outputBitCursor,
-                         remainder + ((1 << u) - d));
-      }
-      inPositionsStillAvailable -= distancesBetweenOnes[idxDistances]+1;
-      onesStillToPlaceOut--;
    }
+   while (outputBitCursor < MAX_COMPRESSED_LEN) {
+      bitstream_write(bitstreamOut,1,outputBitCursor,(uint64_t) 0);
+      outputBitCursor++;
+   }
+}
+
+
+/*----------------------------------------------------------------------------*/
+void constant_weight_to_binary_approximate(unsigned char *const bitstreamOut,
+      const DIGIT constantWeightIn[])
+{
+   POSITION_T positionsIn[NUM_ERRORS_T];
+   gf2x_mod_sparsify_error_CT(constantWeightIn,positionsIn,NUM_ERRORS_T);
+   int32_sort((int *)positionsIn,NUM_ERRORS_T);
+
+   unsigned char bitstream_buffer[MAX_COMPRESSED_LEN/8] = {0};
+   constant_time_pos_to_bin(bitstream_buffer,MAX_PREFIX_LEN,positionsIn);
+
+   memcpy(bitstreamOut,bitstream_buffer,MAX_PREFIX_LEN/8);
 } // end constant_weight_to_binary_approximate
 
 /*----------------------------------------------------------------------------*/
-
+/* Encodes a bit string into a constant weight N0 polynomials vector*/
 int binary_to_constant_weight_approximate(DIGIT *constantWeightOut,
-      const unsigned char *const bitstreamIn,
+      unsigned char *const bitstreamIn,
       const int bitLength)
 {
-   uint32_t distancesBetweenOnes[NUM_ERRORS_T];
-   uint32_t idxDistances = 0;
-   uint32_t onesStillToPlaceOut = NUM_ERRORS_T;
-   uint32_t outPositionsStillAvailable = N0*P;
-   unsigned int bitstreamInCursor = 0; /* assuming trailing slack bits in the input
-   stream. In case the slack bits in the input stream are leading, change to
-   8- (bitLength %8) - 1 */
-
-   for(idxDistances = 0; idxDistances< NUM_ERRORS_T &&
-         outPositionsStillAvailable > onesStillToPlaceOut; idxDistances++) {
-      /* lack of positions should not be possible */
-      if ( outPositionsStillAvailable < onesStillToPlaceOut ||
-            outPositionsStillAvailable < 0) {
-         return 0;
-      }
-      /*estimate d and u */
-      unsigned int d;
-      unsigned int u;
-      estimate_d_u(&d,&u,outPositionsStillAvailable,onesStillToPlaceOut);
-      /* read unary-encoded quotient, i.e. leading 1^* 0 */
-      unsigned int quotient = 0;
-      while ((uint64_t) 1 == bitstream_read_padded(bitstreamIn,
-             1,
-             bitLength,
-             &bitstreamInCursor)) {
-         quotient++;
-      }
-      /* decode truncated binary encoded integer */
-      uint32_t distanceToBeComputed = (u > 0) ? bitstream_read_padded(bitstreamIn,
-                                      u-1,
-                                      bitLength,
-                                      &bitstreamInCursor) : 0;
-      if(distanceToBeComputed >= ((1 << u) - d) ) {
-         distanceToBeComputed *= 2;
-         distanceToBeComputed += bitstream_read_padded(bitstreamIn,
-                                 1,
-                                 bitLength,
-                                 &bitstreamInCursor);
-         distanceToBeComputed -= ((1 << u) - d);
-      }
-      distancesBetweenOnes[idxDistances] = distanceToBeComputed + quotient* d;
-      outPositionsStillAvailable -= distancesBetweenOnes[idxDistances] + 1;
-      onesStillToPlaceOut--;
-   }
-
-   if (outPositionsStillAvailable == onesStillToPlaceOut) {
-      for ( ; idxDistances< NUM_ERRORS_T; idxDistances++) {
-         distancesBetweenOnes[idxDistances] = 0;
-      }
-   }
-   if (outPositionsStillAvailable < onesStillToPlaceOut) {
-      return 0;
-   }
-
-   if (bitstreamInCursor < HASH_BYTE_LENGTH*8){
-       return 0;
-   }
-   /*encode ones according to distancesBetweenOnes into constantWeightOut */
-   int current_one_position = -1;
-   for (int i=0; i < NUM_ERRORS_T; i++) {
-      current_one_position += distancesBetweenOnes[i] + 1;
-      if (current_one_position >= N0*P) {
-         return 0;
-      }
-      unsigned int polyIndex = current_one_position / P;
-      unsigned int exponent = current_one_position % P;
-      gf2x_set_coeff( constantWeightOut + NUM_DIGITS_GF2X_ELEMENT*polyIndex, exponent,
-                      ( (DIGIT) 1));
-   }
+   POSITION_T positionsOut[NUM_ERRORS_T];
+   constant_time_bin_to_pos(positionsOut,bitstreamIn);
+   expand_error(constantWeightOut,positionsOut);
    return 1;
 } // end binary_to_constant_weight_approximate

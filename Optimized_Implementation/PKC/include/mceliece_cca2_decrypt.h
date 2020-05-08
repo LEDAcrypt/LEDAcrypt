@@ -1,10 +1,8 @@
 /**
  *
- * <mceliece_cca2_decrypt.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -33,11 +31,9 @@
 #pragma once
 #include "mceliece.h"
 
-int decrypt_Kobara_Imai(unsigned char *const output,  //
-                        unsigned long long* byteOutputLength,
-                        AES_XOF_struct *mceliece_keys_expander,
-                        int8_t rejections,
+int decrypt_Kobara_Imai(unsigned char *const output,
+                        unsigned long long *byteOutputLength,
+                        privateKeyMcEliece_t *sk,
                         const unsigned long long clen,
-                        const unsigned char *const
-                        ctx // constituted by codeword || leftover
+                        const unsigned char *const ctx // constituted by codeword || leftover
                        );

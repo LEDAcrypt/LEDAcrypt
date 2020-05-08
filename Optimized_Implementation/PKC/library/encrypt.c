@@ -1,10 +1,8 @@
 /**
  *
- * <encrypt.c>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -40,14 +38,9 @@
 int crypto_encrypt_keypair( unsigned char *pk,
                             unsigned char *sk )
 {
-   AES_XOF_struct mceliece_keys_expander;
-   memset(((privateKeyMcEliece_t *) sk)->prng_seed,0x00,TRNG_BYTE_LENGTH);
-   randombytes(((privateKeyMcEliece_t *) sk)->prng_seed,TRNG_BYTE_LENGTH);
-   seedexpander_from_trng(&mceliece_keys_expander,
-                          ((privateKeyMcEliece_t *) sk)->prng_seed);
-   mceliece_keygen((publicKeyMcEliece_t *) pk,
-                   (privateKeyMcEliece_t *) sk,
-                   &mceliece_keys_expander);
+
+   key_gen_mceliece((publicKeyMcEliece_t *) pk,
+                    (privateKeyMcEliece_t *) sk);
    return 0;
 }
 
@@ -66,13 +59,12 @@ int crypto_encrypt( unsigned char *c, unsigned long long *clen,
     * KOBARA_IMAI_CONSTANT_LENGTH_B +
     * sizeof(KI_LENGTH_FIELD_TYPE)  */
 
-
-    if (mlen<=MAX_BYTES_IN_IWORD){
+   if (mlen<=MAX_BYTES_IN_IWORD) {
       *clen= N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B;
-    } else {
+   } else {
       int leftover_len = mlen- MAX_BYTES_IN_IWORD;
       *clen= N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B + leftover_len;
-    }
+   }
    if (encrypt_Kobara_Imai(c,
                            (publicKeyMcEliece_t *)pk,
                            mlen,
@@ -86,13 +78,9 @@ int crypto_encrypt_open( unsigned char *m, unsigned long long *mlen,
                          const unsigned char *c, unsigned long long clen,
                          const unsigned char *sk )
 {
-   AES_XOF_struct mceliece_keys_expander;
-   seedexpander_from_trng(&mceliece_keys_expander,
-                          ((privateKeyMcEliece_t *) sk)->prng_seed);
    if ( decrypt_Kobara_Imai(m,
                             mlen,
-                            &mceliece_keys_expander,
-                            ((privateKeyMcEliece_t *) sk)->rejections,
+                            (privateKeyMcEliece_t *)sk,
                             clen,
                             c) == 1 ) {
       return 0;

@@ -1,10 +1,8 @@
 /**
  *
- * <mceliece.h>
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * @version 2.0 (March 2019)
- *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -36,9 +34,12 @@
 /*----------------------------------------------------------------------------*/
 
 typedef struct {
+   /* raw entropy extracted from TRNG, will be deterministically
+    * expanded into H during decryption */
    unsigned char prng_seed[TRNG_BYTE_LENGTH];
    // stored seed of the PRNG as obtained from the TRNG in key generation phase
-   int8_t rejections;
+   uint8_t rejections;
+   uint8_t secondIterThreshold;
 } privateKeyMcEliece_t;
 
 typedef struct {

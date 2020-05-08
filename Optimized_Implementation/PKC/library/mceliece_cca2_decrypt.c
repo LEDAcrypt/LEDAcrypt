@@ -1,8 +1,8 @@
 /**
  *
- * @version 2.0 (March 2019)
+ * Optimized ISO-C11 Implementation of LEDAcrypt using GCC built-ins.
  *
- * Reference ISO-C11 Implementation of the LEDAcrypt PKC cipher using GCC built-ins.
+ * @version 3.0 (May 2020)
  *
  * In alphabetical order:
  *
@@ -37,7 +37,6 @@
 #include "constant_weight_codec.h"
 
 #include <string.h> // memset(...), memcpy(....)
-#include <assert.h>
 #include <stdio.h>
 
 /*----------------------------------------------------------------------------*/
@@ -45,95 +44,55 @@
 static
 int decrypt_McEliece (DIGIT decoded_err[],
                       DIGIT correct_codeword[],
-                      AES_XOF_struct *mceliece_keys_expander,
-                      int8_t rejections,
+                      privateKeyMcEliece_t *sk,
                       const unsigned char *const ctx)
 {
-
+   AES_XOF_struct mceliece_decrypt_expander;
+   seedexpander_from_trng(&mceliece_decrypt_expander,
+                          sk->prng_seed);
    /* rebuild secret key values */
+   POSITION_T HPosOnes[N0][V];
 
-   POSITION_T HtrPosOnes[N0][DV];
-   POSITION_T HPosOnes[N0][DV];
-   POSITION_T QPosOnes[N0][M];
+   int rejections = sk->rejections;
 
-   POSITION_T LPosOnes[N0][DV*M];
    do {
-   generateHPosOnes_HtrPosOnes(HPosOnes, HtrPosOnes,
-                               mceliece_keys_expander);
-   generateQsparse(QPosOnes, mceliece_keys_expander);
-   for (int i = 0; i < N0; i++) {
-        for (int j = 0; j< DV*M; j++) {
-           LPosOnes[i][j]=INVALID_POS_VALUE;
-        }
-     }
-
-     POSITION_T auxPosOnes[DV*M];
-     unsigned char processedQOnes[N0] = {0};
-     for (int colQ = 0; colQ < N0; colQ++) {
-        for (int i = 0; i < N0; i++) {
-           gf2x_mod_mul_sparse(DV*M, auxPosOnes,
-                               DV, HPosOnes[i],
-                               qBlockWeights[i][colQ], QPosOnes[i]+processedQOnes[i]);
-           gf2x_mod_add_sparse(DV*M, LPosOnes[colQ],
-                               DV*M, LPosOnes[colQ],
-                               DV*M, auxPosOnes);
-           processedQOnes[i] += qBlockWeights[i][colQ];
-        }
-     }
-     rejections--;
+      generateHPosOnes(HPosOnes, &mceliece_decrypt_expander);
+      rejections--;
    } while(rejections>=0);
-   
-   POSITION_T QtrPosOnes[N0][M];
-   unsigned transposed_ones_idx[N0] = {0x00};
-   for(unsigned source_row_idx=0; source_row_idx < N0 ; source_row_idx++) {
-      int currQoneIdx = 0; // position in the column of QtrPosOnes[][...]
-      int endQblockIdx = 0;
-      for (int blockIdx = 0; blockIdx < N0; blockIdx++) {
-         endQblockIdx += qBlockWeights[source_row_idx][blockIdx];
-         for (; currQoneIdx < endQblockIdx; currQoneIdx++) {
-            QtrPosOnes[blockIdx][transposed_ones_idx[blockIdx]] = (P -
-                  QPosOnes[source_row_idx][currQoneIdx]) % P;
-            transposed_ones_idx[blockIdx]++;
-         }
-      }
-   }
 
+   POSITION_T HtrPosOnes[N0][V];
+   transposeHPosOnes(HtrPosOnes, (const POSITION_T (*)[V])HPosOnes);
    /* end rebuild secret key values */
-
-   DIGIT codewordPoly[N0*NUM_DIGITS_GF2X_ELEMENT];
-   memcpy(codewordPoly, ctx, N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B);
-   for (unsigned i = 0; i < N0; i++) {
-      gf2x_transpose_in_place(codewordPoly+i*NUM_DIGITS_GF2X_ELEMENT);
-   }
 
    DIGIT privateSyndrome[NUM_DIGITS_GF2X_ELEMENT]; // privateSyndrome := yVar* Htr
    memset(privateSyndrome, 0x00, NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B);
 
    DIGIT aux[NUM_DIGITS_GF2X_ELEMENT];
    for(int i = 0; i < N0; i++) {
+#if (defined HIGH_PERFORMANCE_X86_64)
+      DIGIT Htrblock[NUM_DIGITS_GF2X_ELEMENT] = {0};
+      gf2x_mod_densify_CT(Htrblock,HtrPosOnes[i],V);
+      gf2x_mod_mul(aux,((const DIGIT *)ctx)+i*NUM_DIGITS_GF2X_ELEMENT,Htrblock);
+#else
       gf2x_mod_mul_dense_to_sparse(aux,
-                                   codewordPoly+i*NUM_DIGITS_GF2X_ELEMENT,
-                                   LPosOnes[i],
-                                   DV*M);
+                                   ((const DIGIT *)ctx)+i*NUM_DIGITS_GF2X_ELEMENT,
+                                   HtrPosOnes[i],
+                                   V);
+#endif
       gf2x_mod_add(privateSyndrome, privateSyndrome, aux);
-   } // end for i
-   gf2x_transpose_in_place(privateSyndrome);
-
-
+   }
 
    memset(decoded_err,0x00, N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B);
    /*perform syndrome decoding to obtain error vector */
    int ok;
-   ok = bf_decoding(decoded_err,
-                    (const POSITION_T (*)[DV])HtrPosOnes,
-                    (const POSITION_T (*)[M])QtrPosOnes,
-                    privateSyndrome
-                   );
-
+   ok = bf_decoding_CT(decoded_err,
+                       (const POSITION_T (*)[V])HtrPosOnes,
+                       (const POSITION_T (*)[V])HPosOnes,
+                       privateSyndrome);
    if ( ok == 0 ) return 0;
    int err_weight = 0;
-   for (int i =0 ;i < N0; i++){
-       err_weight += population_count(decoded_err+(NUM_DIGITS_GF2X_ELEMENT*i));
+   for (int i =0 ; i < N0; i++) {
+      err_weight += population_count(decoded_err+(NUM_DIGITS_GF2X_ELEMENT*i));
    }
    if (err_weight != NUM_ERRORS_T) return 0;
 
@@ -149,7 +108,6 @@ int decrypt_McEliece (DIGIT decoded_err[],
 static
 void char_left_bit_shift_n(const int length, uint8_t in[], const int amount)
 {
-   assert(amount < 8);
    if ( amount == 0 ) return;
    int j;
    uint8_t mask;
@@ -178,7 +136,7 @@ int poly_seq_into_bytestream(unsigned char output[],
    for (int i =  0; i <numPoly; i++) {
       for (unsigned exponent = 0; exponent < NUM_BITS_GF2X_ELEMENT; exponent++) {
          bitValue = gf2x_get_coeff(zPoly+i*NUM_DIGITS_GF2X_ELEMENT, exponent);
-         bitstream_write(output, 1, &output_bit_cursor, bitValue );
+         bitstream_write_construction(output, 1, &output_bit_cursor, bitValue );
       } // end for exponent
    } // end for i
    int padsize = (K%8) ? 8-(K%8) : 0;
@@ -188,13 +146,13 @@ int poly_seq_into_bytestream(unsigned char output[],
 
 /*----------------------------------------------------------------------------*/
 
+extern int thresholds[2];
+
 int decrypt_Kobara_Imai(unsigned char *const output,  //
-                        unsigned long long * byteOutputLength,
-                        AES_XOF_struct *mceliece_keys_expander,
-                        int8_t rejections,
+                        unsigned long long *byteOutputLength,
+                        privateKeyMcEliece_t *sk,
                         const unsigned long long clen,
-                        const unsigned char *const
-                        ctx // constituted by codeword || leftover
+                        const unsigned char *const ctx // constituted by codeword || leftover
                        )
 {
    DIGIT err[N0*NUM_DIGITS_GF2X_ELEMENT];
@@ -203,8 +161,8 @@ int decrypt_Kobara_Imai(unsigned char *const output,  //
    /* first N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B bytes are the actual McE
     * ciphertext. Note: storage endiannes in BE hardware should flip bytes */
    memcpy(correctedCodeword,ctx,N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B);
-   if (decrypt_McEliece (err, correctedCodeword,
-                         mceliece_keys_expander,rejections, ctx) == 0 ) {
+   thresholds[1] = sk->secondIterThreshold;
+   if (decrypt_McEliece (err, correctedCodeword, sk, ctx) == 0 ) {
       fprintf(stderr,"Decode FAIL\n");
       return 0;
    }
@@ -213,10 +171,11 @@ int decrypt_Kobara_Imai(unsigned char *const output,  //
     * portion, followed by syndrome turn back iword into a bytesequence */
    uint64_t paddedSequenceLen;
    if(clen <= N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B) {
-     paddedSequenceLen =  (K+7)/8;
+      paddedSequenceLen =  (K+7)/8;
    } else {
-     paddedSequenceLen = clen - N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B  -1 /*leftover dup!*/
-                         + (K+7)/8;
+      paddedSequenceLen = clen - N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B
+                          -1 /*leftover dup!*/
+                          + (K+7)/8;
    }
    unsigned char paddedOutput[paddedSequenceLen];
    memset(paddedOutput,0,paddedSequenceLen);
@@ -224,18 +183,18 @@ int decrypt_Kobara_Imai(unsigned char *const output,  //
                             correctedCodeword,(N0-1));
 
    /* move back leftover padded string (if present) onto its position*/
-   if (clen>N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B){
+   if (clen>N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B) {
 #if ((K%8)!=0)
-   /* meld back byte split across iword and leftover. Recall that leftover is
-    * built with leading zeroes, and output from iword has trailing zeroes
-    * so no masking away is needed */
-   paddedOutput[((K+7)/8)-1] |= ctx[N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B];
+      /* meld back byte split across iword and leftover. Recall that leftover is
+       * built with leading zeroes, and output from iword has trailing zeroes
+       * so no masking away is needed */
+      paddedOutput[((K+7)/8)-1] |= ctx[N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B];
 #endif
 
-   int remainingToCopy= paddedSequenceLen - ((K+7)/8);
-   memmove(paddedOutput+( (K+7)/8),
-           ctx+N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B+1/*first leftover already managed*/,
-           remainingToCopy);
+      int remainingToCopy= paddedSequenceLen - ((K+7)/8);
+      memmove(paddedOutput+( (K+7)/8),
+              ctx+N0*NUM_DIGITS_GF2X_ELEMENT*DIGIT_SIZE_B+1/*first leftover already managed*/,
+              remainingToCopy);
    }
 
 
@@ -256,7 +215,7 @@ int decrypt_Kobara_Imai(unsigned char *const output,  //
 
    /* test that the padding bytes of the seed are actually zero */
    for (int i = TRNG_BYTE_LENGTH; i < HASH_BYTE_LENGTH; i++) {
-      if((cwEncOutputBuffer[i] ^ outputHash[i]) != 0){
+      if((cwEncOutputBuffer[i] ^ outputHash[i]) != 0) {
          fprintf(stderr,"Nonzero TRNG pad \n");
          return 0;
       }
@@ -267,14 +226,14 @@ int decrypt_Kobara_Imai(unsigned char *const output,  //
    deterministic_random_byte_generator(prngSequence,sizeof(prngSequence),
                                        secretSeed,TRNG_BYTE_LENGTH);
    /* remove PRNG Pad from entire message */
-   for (int i = 0;i < paddedSequenceLen;i++){
-       paddedOutput[i] ^= prngSequence[i];
+   for (int i = 0; i < paddedSequenceLen; i++) {
+      paddedOutput[i] ^= prngSequence[i];
    }
 
    /*test if Kobara Imai constant, default to zero, matches */
    for (int i = 0; i < KOBARA_IMAI_CONSTANT_LENGTH_B; i++) {
-      if(paddedOutput[i] != 0){
-          fprintf(stderr,"KI const mismatch \n");
+      if(paddedOutput[i] != 0) {
+         fprintf(stderr,"KI const mismatch \n");
          return 0;
       }
    }
